@@ -48,3 +48,14 @@ coverage/
 
 # Typescript
 *.tsbuildinfo
+
+# Legacy portfolio files (unrelated to SkilBridge)
+/boyfriend-day/
+/certificates/
+/events/
+/src/
+/index.html
+/postcss.config.js
+/tailwind.config.js
+/vite.config.js
+/package-lock.json
