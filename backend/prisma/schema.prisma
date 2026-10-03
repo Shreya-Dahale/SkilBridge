@@ -1,0 +1,169 @@
+// Prisma Schema for SkilBridge (SQLite local development)
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               String            @id @default(uuid())
+  name             String
+  email            String            @unique
+  password         String
+  role             String            @default("CANDIDATE") // CANDIDATE, EMPLOYER
+  createdAt        DateTime          @default(now())
+  candidateProfile CandidateProfile?
+  employerProfile  EmployerProfile?
+}
+
+model CandidateProfile {
+  id               String           @id @default(uuid())
+  userId           String           @unique
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone            String?
+  location         String?
+  targetRole       String?
+  careerBreakYears Float            @default(0)
+  bio              String?
+  profilePhoto     String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  careerHistories  CareerHistory[]
+  candidateSkills  CandidateSkill[]
+  submissions      Submission[]
+  evidences        Evidence[]
+  sharedProfiles   SharedProfile[]
+}
+
+model EmployerProfile {
+  id                 String          @id @default(uuid())
+  userId             String          @unique
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName        String
+  industry           String?
+  location           String?
+  companyDescription String?
+  website            String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  jobs               Job[]
+  sharedProfiles     SharedProfile[]
+}
+
+model CareerHistory {
+  id          String           @id @default(uuid())
+  candidateId String
+  candidate   CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  company     String
+  role        String
+  startDate   String
+  endDate     String?
+  description String?
+  createdAt   DateTime         @default(now())
+}
+
+model Skill {
+  id              String           @id @default(uuid())
+  name            String           @unique
+  category        String
+  candidateSkills CandidateSkill[]
+  jobSkills       JobSkill[]
+}
+
+model CandidateSkill {
+  id              String           @id @default(uuid())
+  candidateId     String
+  candidate       CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  skillId         String
+  skill           Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  yearsExperience Float            @default(0)
+  status          String           @default("NEEDS_REFRESH") // NEEDS_REFRESH, ASSESSED, VERIFIED, IN_PROGRESS
+  selfRating      Int              @default(3)
+  createdAt       DateTime         @default(now())
+
+  @@unique([candidateId, skillId])
+}
+
+model Job {
+  id                 String          @id @default(uuid())
+  employerId         String
+  employer           EmployerProfile @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  title              String
+  description        String
+  location           String
+  experienceRequired String
+  status             String          @default("OPEN") // OPEN, CLOSED
+  salaryRange        String?
+  workMode           String?         @default("Hybrid") // Remote, Hybrid, On-site
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  jobSkills          JobSkill[]
+}
+
+model JobSkill {
+  id        String  @id @default(uuid())
+  jobId     String
+  job       Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  skillId   String
+  skill     Skill   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  required  Boolean @default(true)
+  preferred Boolean @default(false)
+
+  @@unique([jobId, skillId])
+}
+
+model Assessment {
+  id               String       @id @default(uuid())
+  title            String
+  description      String
+  skill            String
+  difficulty       String       // Beginner, Intermediate, Advanced
+  timeLimitMinutes Int          @default(20)
+  passingScore     Int          @default(70)
+  questions        String       // JSON string of questions, options, code snippets & explanations
+  createdAt        DateTime     @default(now())
+  submissions      Submission[]
+}
+
+model Submission {
+  id           String           @id @default(uuid())
+  assessmentId String
+  assessment   Assessment       @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  candidateId  String
+  candidate    CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  score        Float
+  status       String           // PASSED, FAILED, EVALUATING
+  submittedAt  DateTime         @default(now())
+  answers      String?          // JSON string of user answers
+  feedback     String?
+}
+
+model Evidence {
+  id              String           @id @default(uuid())
+  candidateId     String
+  candidate       CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  skill           String
+  evidenceType    String           // ASSESSMENT_VERIFIED, GITHUB_PROJECT, PORTFOLIO_CASE_STUDY, CERTIFICATION
+  description     String
+  score           Float            @default(85)
+  status          String           @default("VERIFIED") // VERIFIED, IN_REVIEW, SUBMITTED
+  verificationUrl String?
+  verifiedAt      DateTime         @default(now())
+}
+
+model SharedProfile {
+  id          String           @id @default(uuid())
+  candidateId String
+  candidate   CandidateProfile @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  employerId  String
+  employer    EmployerProfile  @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  sharedAt    DateTime         @default(now())
+  permissions String           @default("FULL_EVIDENCE_ACCESS")
+  status      String           @default("ACTIVE") // ACTIVE, REVIEWED, SHORTLISTED, INTERVIEW_REQUESTED
+  note        String?
+
+  @@unique([candidateId, employerId])
+}
